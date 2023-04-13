@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <sys/cdefs.h>
+#include <sstream>
 
 #ifndef __TERMUX_PREFIX__
 #error "__TERMUX_PREFIX__ not defined"
@@ -196,16 +197,20 @@ int main(int argc, const char *argv[]) {
   if (best_distance == -1 || best_distance > 3) {
     std::cerr << command << ": command not found" << std::endl;
   } else if (best_distance == 0) {
+    std::stringstream pkg_install_command;
+    pkg_install_command << "pkg install " << it->first;
+    if (it->second.repository != "" &&
+        !std::filesystem::exists(std::string(sources_prefix) +
+                                 it->second.repository + ".list")) {
+        pkg_install_command << " && pkg install " << it->second.repository << "-repo";
+    }
+    std::string clipboard_command = "termux-clipboard-set \"" + pkg_install_command.str() + "\"";
+    system(clipboard_command.c_str());
     std::cerr << "The program " << command
-              << " is not installed. Install it by executing:" << std::endl;
-    for (it = package_map.begin(); it != package_map.end(); ++it) {
-      std::cerr << " pkg install " << it->first;
-      if (it->second.repository != "" &&
-          !std::filesystem::exists(std::string(sources_prefix) +
-                                   it->second.repository + ".list")) {
-        std::cerr << ", after running pkg install " << it->second.repository
-                  << "-repo" << std::endl;
-      } else {
+              << " is not installed. The following command has been copied to your clipboard:"
+              << std::endl
+              << pkg_install_command.str() << std::endl;
+} else {
         std::cerr << std::endl;
       }
       if (next(it) != package_map.end()) {
